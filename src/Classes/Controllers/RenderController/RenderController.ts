@@ -7,6 +7,9 @@ export interface RenderControllerProps {
     container: HTMLDivElement;
 }
 
+// TODO: refactor so March Material is a full screen quad processing pass
+// Manipulate the scene via proxy geometries
+
 export default class RenderController {
     private _container: HTMLDivElement = document.createElement('div');
     private _renderer: THREE.WebGLRenderer;
@@ -15,6 +18,7 @@ export default class RenderController {
     private _march: MarchMaterial | null = null;
     private _light: THREE.DirectionalLight | null = null;
     private _ambientLight: THREE.AmbientLight | null = null;
+    private _plane: THREE.Mesh | null = null;
 
     constructor() {
         this._renderer = new THREE.WebGLRenderer({
@@ -70,7 +74,6 @@ export default class RenderController {
         this._resize();
         this.startAnimationLoop();
 
-        const sceneBox = new THREE.BoxGeometry(10, 10, 10);
         const material = new MarchMaterial({}, this._renderer.getContext());
         this._march = material;
 
@@ -82,8 +85,30 @@ export default class RenderController {
 
         this._march.resolution.set(this._container.clientWidth, this._container.clientHeight);
 
-        const cube = new THREE.Mesh(sceneBox, material);
-        this._scene.add(cube);
+        const geometry = new THREE.PlaneGeometry();
+        this._plane = new THREE.Mesh(geometry, material);
+
+        // Get the wdith and height of the near plane
+        const nearPlaneWidth =
+            this._camera.near *
+            Math.tan(THREE.MathUtils.degToRad(this._camera.fov / 2)) *
+            this._camera.aspect *
+            2;
+        const nearPlaneHeight = nearPlaneWidth / this._camera.aspect;
+        this._plane.scale.set(nearPlaneWidth, nearPlaneHeight, 1);
+
+        this._scene.add(this._plane);
+    };
+
+    private _movePlaneWithCamera = () => {
+        if (this._plane) {
+            this._plane.position.copy(this._camera.position);
+            this._plane.lookAt(
+                this._camera.position
+                    .clone()
+                    .add(this._camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(-1)),
+            );
+        }
     };
 
     public dispose = () => {
@@ -97,6 +122,7 @@ export default class RenderController {
             this._march.camInvProjMat.copy(this._camera.projectionMatrixInverse);
             this._march.resolution.set(this._container.clientWidth, this._container.clientHeight);
         }
+        this._movePlaneWithCamera();
         this._renderer.render(this._scene, this._camera);
     };
 

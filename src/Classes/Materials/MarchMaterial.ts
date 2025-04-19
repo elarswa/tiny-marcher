@@ -19,32 +19,75 @@ const fragment = `
     uniform vec3 u_diffuse;
     varying vec2 vUv;
     varying vec3 vPos;
-    uniform u_ambientColor;
-    uniform u_ambientIntensity;
-    uniform u_specularColor;
-    uniform u_specularIntensity;
+    uniform vec3 u_camPos;
+    uniform mat4 u_camToWorldMat;
+    uniform mat4 u_camInvProjMat;
+    uniform vec3 u_lightDir;
+    uniform vec3 u_lightColor;
+    uniform vec3 u_diffIntensity;
+    uniform float u_shininess;
+    uniform float u_specIntensity;
+    uniform vec3 u_specularColor;
+    uniform vec3 u_ambientColor;
+    uniform float u_ambientIntensity;
+    uniform float u_specularIntensity;
+    uniform vec3 u_box;
 
     const int NUM_STEPS = 32;
     const float MIN_DIST = 0.001;
     const float MAX_DIST = 1000.0;
 
-    vec3 ray_march(in vec3 rayOrigin, in vec3 rayDirection) {
+    float boxSDF(vec3 p, vec3 b) {
+        // vec3 d = abs(p) - b;
+        // return length(max(d, 0.0)) + min(max(d.x, max(d.y, d.z)), 0.0);
+        vec3 d = p - u_box; // distance from point to  point
+        return length(d) - 1.0; // 1 is radius
+    }
+
+    float sceneSDF(vec3 p) {
+    // TODO: replace with box from proxy geometry
+        float box = boxSDF(p, vec3(1.0));
+        return box;
+    }
+
+    float ray_march(in vec3 rayOrigin, in vec3 rayDirection) {
         float total_distance = 0.0;
         for (int i = 0; i < NUM_STEPS; i++) {
             vec3 current_position = rayOrigin + rayDirection * total_distance;
-            float distance_to_closest = length(current_position) - 1.0;
-            if (distance_to_closest < MIN_DIST) {
-                return u_diffuse; // Color of the sphere
-            }
-            total_distance += distance_to_closest;
+            float dist = sceneSDF(current_position);
+
+            if (dist < MIN_DIST ||  dist > MAX_DIST) break;
+
+            total_distance += dist;
         }
 
-        discard;
+        return total_distance;
     }
 
     void main() {
-        vec2 st = gl_FragCoord.xy / u_resolution;
-        gl_FragColor = vec4(uv.xy, 0.0, 1.0);
+        // vec2 st = gl_FragCoord.xy / u_resolution;
+        vec2 uv = vUv;
+        vec3 ro = u_camPos;
+        vec3 rd = (u_camInvProjMat * vec4(uv*2.-1., 0, 1)).xyz;
+        rd = (u_camToWorldMat * vec4(rd, 0)).xyz;
+        rd = normalize(rd);
+
+        float scene_distance = ray_march(ro, rd);
+
+        if (scene_distance > MAX_DIST) {
+            discard;
+        }
+        
+        vec3 hit_position = ro + scene_distance * rd;
+        
+        // Get normal of hit point
+        // vec3 n = normalize(hit_position);
+
+        // float dotNL = dot(n, u_lightDir);
+        // float diff = max(dotNL, 0.0) * u_diffIntensity;
+        // float spec = pow(diff, u_shininess) * u_specIntensity;
+        
+        gl_FragColor = vec4(u_diffuse,1); // color output
     }
 `;
 
@@ -64,13 +107,15 @@ export default class MarchMaterial extends THREE.ShaderMaterial {
             uniforms: {
                 u_time: { value: 0 },
                 u_resolution: { value: new THREE.Vector2() },
-                u_diffuse: { value: new THREE.Color(0xffffff) },
-                u_box: { value: new THREE.Vector3(1, 1, 1) },
+                u_diffuse: { value: new THREE.Color(0xff0000) },
+                u_box: { value: new THREE.Vector3(0.1, 0.1, 0.1) },
                 u_camPos: { value: new THREE.Vector3() },
                 u_camToWorldMat: { value: new THREE.Matrix4() },
                 u_camInvProjMat: { value: new THREE.Matrix4() },
                 u_lightDir: { value: new THREE.Vector3() },
                 u_lightColor: { value: new THREE.Color(0xffffff) },
+                u_abientColor: { value: new THREE.Color(0xffffff) },
+                u_ambientIntensity: { value: 0.1 },
             },
             vertexShader: `
                 varying vec2 vUv;
@@ -78,7 +123,7 @@ export default class MarchMaterial extends THREE.ShaderMaterial {
                 void main() {
                     vUv = uv;
                     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-                    vPos = gl_Position;.xyz
+                    vPos = gl_Position.xyz;
                 }
             `,
             fragmentShader: fragment,
