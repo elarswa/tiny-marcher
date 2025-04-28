@@ -1,32 +1,38 @@
 import { debounceTime, fromEvent } from 'rxjs';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import MarchMaterial from '../../Materials/MarchMaterial';
+import { EffectComposer } from 'three/examples/jsm/Addons.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import MarchPass from '../../Materials/MarchPass/MarchPass';
+import DepthPass from '../../Materials/DepthPass/DepthPass';
 
 export interface RenderControllerProps {
     container: HTMLDivElement;
 }
 
-// TODO: refactor so March Material is a full screen quad processing pass
-// Manipulate the scene via proxy geometries
+const NEAR = 0.1;
+const FAR = 100;
 
 export default class RenderController {
     private _container: HTMLDivElement = document.createElement('div');
     private _renderer: THREE.WebGLRenderer;
     private _scene: THREE.Scene;
     private _camera: THREE.PerspectiveCamera;
-    private _march: MarchMaterial | null = null;
     private _light: THREE.DirectionalLight | null = null;
     private _ambientLight: THREE.AmbientLight | null = null;
-    private _plane: THREE.Mesh | null = null;
+    private _composer: EffectComposer;
+    private _marchPass: MarchPass | null = null;
+    private _depthPass: DepthPass | null = null;
+    private _depthRender: THREE.WebGLRenderTarget;
 
     constructor() {
         this._renderer = new THREE.WebGLRenderer({
-            antialias: true,
+            // antialias: true,
             alpha: true,
-            depth: false,
+            depth: true,
             stencil: false,
         });
+        this._renderer.outputColorSpace = THREE.SRGBColorSpace;
 
         // Initialize scene
         this._scene = new THREE.Scene();
@@ -35,10 +41,11 @@ export default class RenderController {
         this._camera = new THREE.PerspectiveCamera(
             75, // Field of view
             1, // Aspect ratio (will be updated in init)
-            0.1, // Near plane
-            1000, // Far plane
+            NEAR,
+            FAR,
         );
         this._camera.position.set(0, 5, 5);
+        this._depthRender = new THREE.WebGLRenderTarget(); // init later
 
         this._light = new THREE.DirectionalLight(0xffffff, 1);
         this._light.position.set(5, 5, 5).normalize();
@@ -57,7 +64,21 @@ export default class RenderController {
         controls.minDistance = 1;
         controls.maxDistance = 100;
         controls.maxPolarAngle = Math.PI / 2; // Limit vertical rotation
+
+        this._composer = new EffectComposer(this._renderer);
     }
+
+    public addWalls = () => {
+        const wallGeometry = new THREE.BoxGeometry(2, 1, 0.1);
+        const wallMaterial = new THREE.MeshBasicMaterial({ color: 0x0ff0f0 });
+        const wall1 = new THREE.Mesh(wallGeometry, wallMaterial);
+        wall1.position.set(0, 0.5, -0.5);
+        this._scene.add(wall1);
+        const wall2 = wall1.clone();
+        wall2.position.set(1, 0.5, 1);
+        wall2.rotateOnAxis(new THREE.Vector3(0, 1, 0), Math.PI / 4);
+        this._scene.add(wall2);
+    };
 
     public init = ({ container }: RenderControllerProps) => {
         this._container = container;
@@ -71,59 +92,61 @@ export default class RenderController {
         // Update camera aspect ratio
         this._camera.aspect = this._container.clientWidth / this._container.clientHeight;
         this._camera.updateProjectionMatrix();
+
+        this._depthRender = new THREE.WebGLRenderTarget(
+            this._container.clientWidth,
+            this._container.clientHeight,
+            {
+                minFilter: THREE.LinearFilter,
+                magFilter: THREE.LinearFilter,
+                format: THREE.RGBAFormat,
+
+                depthBuffer: true,
+                depthTexture: new THREE.DepthTexture(
+                    this._container.clientWidth,
+                    this._container.clientHeight,
+                ),
+            },
+        );
+
+        this._composer.addPass(new RenderPass(this._scene, this._camera));
+        this._depthPass = new DepthPass(this._renderer.getContext());
+        this._depthPass.material.uniforms.uCameraNear.value = NEAR;
+        this._depthPass.material.uniforms.uCameraFar.value = FAR;
+        this._depthPass.material.uniforms.tDepth.value = this._depthRender.depthTexture;
+        this._depthPass.material.uniforms.tDiffuse.value = this._depthRender.texture;
+
+        this._composer.addPass(new DepthPass(this._renderer.getContext()));
+        // insert marching pass
+        this._marchPass = new MarchPass(this._renderer.getContext());
+        this._marchPass.material.uniforms.u_depth.value = this._depthRender.depthTexture;
+        this._composer.addPass(this._marchPass);
         this._resize();
+        this.addWalls();
         this.startAnimationLoop();
-
-        const material = new MarchMaterial({}, this._renderer.getContext());
-        this._march = material;
-
-        if (this._light && this._ambientLight) {
-            this._march.lightColor.copy(this._light.color);
-            this._march.lightDir.copy(this._light.position);
-            // TODO: ambient light in MarchMaterial
-        }
-
-        this._march.resolution.set(this._container.clientWidth, this._container.clientHeight);
-
-        const geometry = new THREE.PlaneGeometry();
-        this._plane = new THREE.Mesh(geometry, material);
-
-        // Get the wdith and height of the near plane
-        const nearPlaneWidth =
-            this._camera.near *
-            Math.tan(THREE.MathUtils.degToRad(this._camera.fov / 2)) *
-            this._camera.aspect *
-            2;
-        const nearPlaneHeight = nearPlaneWidth / this._camera.aspect;
-        this._plane.scale.set(nearPlaneWidth, nearPlaneHeight, 1);
-
-        this._scene.add(this._plane);
-    };
-
-    private _movePlaneWithCamera = () => {
-        if (this._plane) {
-            this._plane.position.copy(this._camera.position);
-            this._plane.lookAt(
-                this._camera.position
-                    .clone()
-                    .add(this._camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(-1)),
-            );
-        }
     };
 
     public dispose = () => {
         this.resize.unsubscribe();
     };
 
-    public render = () => {
-        if (this._march) {
-            this._march.camPos.copy(this._camera.position);
-            this._march.camToWorldMat.copy(this._camera.matrixWorld);
-            this._march.camInvProjMat.copy(this._camera.projectionMatrixInverse);
-            this._march.resolution.set(this._container.clientWidth, this._container.clientHeight);
+    private _updateMarchMaterial = () => {
+        if (this._marchPass) {
+            this._marchPass.camPos.copy(this._camera.position);
+            this._marchPass.camToWorldMat.copy(this._camera.matrixWorld);
+            this._marchPass.camInvProjMat.copy(this._camera.projectionMatrixInverse);
+            this._marchPass.resolution.set(
+                this._container.clientWidth,
+                this._container.clientHeight,
+            );
         }
-        this._movePlaneWithCamera();
+    };
+
+    public render = () => {
+        this._updateMarchMaterial();
+        this._renderer.setRenderTarget(this._depthRender);
         this._renderer.render(this._scene, this._camera);
+        this._composer.render();
     };
 
     public startAnimationLoop = () => {
@@ -137,6 +160,8 @@ export default class RenderController {
     private _resize = () => {
         if (!this._container.parentElement) return;
         this._renderer.setSize(this._container.clientWidth, this._container.clientHeight);
+        this._composer.setSize(this._container.clientWidth, this._container.clientHeight);
+        this._composer.setPixelRatio(window.devicePixelRatio);
 
         // Update camera aspect ratio on resize
         this._camera.aspect = this._container.clientWidth / this._container.clientHeight;
