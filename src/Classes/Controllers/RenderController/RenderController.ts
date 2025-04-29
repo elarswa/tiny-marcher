@@ -5,6 +5,7 @@ import { EffectComposer } from 'three/examples/jsm/Addons.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import MarchPass from '../../Materials/MarchPass/MarchPass';
 import DepthPass from '../../Materials/DepthPass/DepthPass';
+import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
 export interface RenderControllerProps {
     container: HTMLDivElement;
@@ -12,6 +13,8 @@ export interface RenderControllerProps {
 
 const NEAR = 0.1;
 const FAR = 100;
+const radius = 5; // Distance from the origin
+const speed = 0.1; // Speed of orbit
 
 export default class RenderController {
     private _container: HTMLDivElement = document.createElement('div');
@@ -48,13 +51,15 @@ export default class RenderController {
         this._depthRender = new THREE.WebGLRenderTarget(); // init later
 
         this._light = new THREE.DirectionalLight(0xffffff, 1);
-        this._light.position.set(5, 5, 5).normalize();
+        this._light.position.set(5, 5, 0).normalize();
         this._scene.add(this._light);
         this._scene.background = new THREE.Color(0xffffff); // Set background color
         this._ambientLight = new THREE.AmbientLight(0x404040, 1); // Soft white light
         this._scene.add(this._ambientLight);
         const gridHelper = new THREE.GridHelper(10, 10);
         this._scene.add(gridHelper);
+        const axesHelper = new THREE.AxesHelper(5);
+        this._scene.add(axesHelper);
 
         // Add basic perspective camera controls
         const controls = new OrbitControls(this._camera, this._renderer.domElement);
@@ -124,6 +129,11 @@ export default class RenderController {
         this._resize();
         this.addWalls();
         this.startAnimationLoop();
+
+        const gui = new GUI();
+        gui.add(this._marchPass, 'maxSteps', 1, 200, 1).name('Steps');
+
+        gui.open();
     };
 
     public dispose = () => {
@@ -132,6 +142,11 @@ export default class RenderController {
 
     private _updateMarchMaterial = () => {
         if (this._marchPass) {
+            this._marchPass.lightDir.copy(
+                (this._light?.position || new THREE.Vector3(0, 1, 0).normalize()).multiplyScalar(
+                    -1,
+                ),
+            );
             this._marchPass.camPos.copy(this._camera.position);
             this._marchPass.camToWorldMat.copy(this._camera.matrixWorld);
             this._marchPass.camInvProjMat.copy(this._camera.projectionMatrixInverse);
@@ -143,6 +158,12 @@ export default class RenderController {
     };
 
     public render = () => {
+        const elapsedTime = performance.now() * 0.001; // Convert to seconds
+
+        this._camera.position.x = radius * Math.cos(elapsedTime * speed);
+        this._camera.position.z = radius * Math.sin(elapsedTime * speed);
+        this._camera.lookAt(0, 0, 0); // Ensure the camera always looks at the origin
+
         this._updateMarchMaterial();
         this._renderer.setRenderTarget(this._depthRender);
         this._renderer.render(this._scene, this._camera);
