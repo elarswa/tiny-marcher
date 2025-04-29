@@ -7,14 +7,17 @@ const materialParams: THREE.ShaderMaterialParameters = {
     uniforms: {
         u_time: { value: 0.0 },
         u_resolution: { value: new THREE.Vector2(800, 600) },
-        u_box: { value: new THREE.Vector3(1.0, 1.0, 1.0) },
         u_camPos: { value: new THREE.Vector3(0.0, 0.0, 0.0) },
         u_camToWorldMat: { value: new THREE.Matrix4() },
         u_camInvProjMat: { value: new THREE.Matrix4() },
-        u_lightDir: { value: new THREE.Vector3(0.0, 0.0, -1.0) },
+        u_lightDir: { value: new THREE.Vector3(0.0, -1.0, 0.0) },
         u_lightColor: { value: new THREE.Color(1.0, 1.0, 1.0) },
+        u_ambientColor: { value: new THREE.Color(1.0, 1.0, 1.0) },
+        u_ambientIntensity: { value: 0.1 },
+        u_diffIntensity: { value: 1.0 },
         u_image_buffer: { value: null },
         u_depth: { value: null },
+        u_maxSteps: { value: 100 },
     },
     vertexShader: marchVS,
     fragmentShader: marchFS,
@@ -39,14 +42,6 @@ export default class MarchPass extends PostPass {
 
     set resolution(value: THREE.Vector2) {
         this.material.uniforms.u_resolution.value = value;
-    }
-
-    get box(): THREE.Vector3 {
-        return this.material.uniforms.u_box.value;
-    }
-
-    set box(value: THREE.Vector3) {
-        this.material.uniforms.u_box.value = value;
     }
 
     get camPos(): THREE.Vector3 {
@@ -87,6 +82,14 @@ export default class MarchPass extends PostPass {
 
     set lightColor(value: THREE.Color) {
         this.material.uniforms.u_lightColor.value = value;
+    }
+
+    get maxSteps(): number {
+        return this.material.uniforms.u_maxSteps.value;
+    }
+
+    set maxSteps(value: number) {
+        this.material.uniforms.u_maxSteps.value = value;
     }
 
     public override render(
