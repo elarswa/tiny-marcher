@@ -1,5 +1,3 @@
-import { FAR, NEAR } from '../../../Constants/camera';
-
 export default `
     precision mediump float;
     uniform int u_outputType;
@@ -24,8 +22,8 @@ export default `
     uniform sampler2D u_depth;
     uniform int u_maxSteps;
 
-    const float MIN_DIST = ${NEAR};
-    const float MAX_DIST = ${FAR}.;
+    const float MIN_DIST = 0.001;
+    const float MAX_DIST = 100.0;
     const float EPSILON = 0.0001;
 
     struct MarchResult {
@@ -101,10 +99,11 @@ export default `
         float raster_depth = texture2D(u_depth, uv).r;
 
         float linear_depth = Linear_depth(raster_depth);
-        float linear_depth_march = Linear_depth( march.distance );
+        float linear_depth_march = Normalize_to_range(march.distance, MIN_DIST, MAX_DIST);
 
-        if (linear_depth_march * ray_dir.z > linear_depth) {
-            discard;
+        if (linear_depth_march  > linear_depth) {
+            gl_FragColor = texel;
+            return;
         }
 
         vec3 hit_position = ray_origin + march.distance * ray_dir;
