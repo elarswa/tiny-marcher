@@ -6,6 +6,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import MarchPass from '../../Materials/MarchPass/MarchPass';
 import DepthPass from '../../Materials/DepthPass/DepthPass';
 import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
+import Stats from 'three/examples/jsm/libs/stats.module.js';
 
 export interface RenderControllerProps {
     container: HTMLDivElement;
@@ -27,6 +28,7 @@ export default class RenderController {
     private _marchPass: MarchPass | null = null;
     private _depthPass: DepthPass | null = null;
     private _depthRender: THREE.WebGLRenderTarget;
+    private _stats: Stats = new Stats();
 
     constructor() {
         this._renderer = new THREE.WebGLRenderer({
@@ -139,6 +141,7 @@ export default class RenderController {
         });
 
         gui.open();
+        document.body.appendChild(this._stats.dom);
     };
 
     public dispose = () => {
@@ -163,6 +166,7 @@ export default class RenderController {
     };
 
     public render = () => {
+        this._stats.begin();
         const elapsedTime = performance.now() * 0.001; // Convert to seconds
 
         this._camera.position.x = radius * Math.cos(elapsedTime * speed);
@@ -173,6 +177,7 @@ export default class RenderController {
         this._renderer.setRenderTarget(this._depthRender);
         this._renderer.render(this._scene, this._camera);
         this._composer.render();
+        this._stats.end();
     };
 
     public startAnimationLoop = () => {
