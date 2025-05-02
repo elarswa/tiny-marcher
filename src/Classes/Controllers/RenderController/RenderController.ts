@@ -7,13 +7,12 @@ import MarchPass from '../../Materials/MarchPass/MarchPass';
 import DepthPass from '../../Materials/DepthPass/DepthPass';
 import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 import Stats from 'three/examples/jsm/libs/stats.module.js';
+import { FAR, NEAR } from '../../../Constants/camera';
 
 export interface RenderControllerProps {
     container: HTMLDivElement;
 }
 
-const NEAR = 0.1;
-const FAR = 100;
 const radius = 5; // Distance from the origin
 const speed = 0.1; // Speed of orbit
 

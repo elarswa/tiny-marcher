@@ -1,10 +1,11 @@
+import { FAR, NEAR } from '../../../Constants/camera';
 import PostPass from '../PostPass';
 import * as THREE from 'three';
 
 const materialParams: THREE.ShaderMaterialParameters = {
     uniforms: {
-        uCameraNear: { value: 0.1 },
-        uCameraFar: { value: 1000.0 },
+        uCameraNear: { value: NEAR },
+        uCameraFar: { value: FAR },
         tDiffuse: { value: null },
         tDepth: { value: null },
     },

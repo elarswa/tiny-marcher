@@ -1,3 +1,5 @@
+import { FAR, NEAR } from '../../../Constants/camera';
+
 export default `
     precision mediump float;
     uniform int u_outputType;
@@ -22,8 +24,8 @@ export default `
     uniform sampler2D u_depth;
     uniform int u_maxSteps;
 
-    const float MIN_DIST = 0.001;
-    const float MAX_DIST = 100.0;
+    const float MIN_DIST = ${NEAR};
+    const float MAX_DIST = ${FAR}.;
     const float EPSILON = 0.0001;
 
     struct MarchResult {
