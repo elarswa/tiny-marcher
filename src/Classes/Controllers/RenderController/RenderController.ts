@@ -30,7 +30,6 @@ export default class RenderController {
 
     constructor() {
         this._renderer = new THREE.WebGLRenderer({
-            // antialias: true,
             alpha: true,
             depth: true,
             stencil: false,
@@ -132,6 +131,12 @@ export default class RenderController {
 
         const gui = new GUI();
         gui.add(this._marchPass, 'maxSteps', 1, 200, 1).name('Steps');
+        gui.add(this._marchPass, 'outputType').name('Output Type').options({
+            Color: 0,
+            Depth: 1,
+            Normal: 2,
+            Steps: 3,
+        });
 
         gui.open();
     };

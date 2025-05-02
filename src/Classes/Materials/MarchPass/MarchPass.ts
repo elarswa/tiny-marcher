@@ -3,6 +3,13 @@ import * as THREE from 'three';
 import marchFS from './marchFS';
 import marchVS from './marchVS';
 
+export const enum OutputType {
+    COLOR = 0,
+    DEPTH = 1,
+    NORMAL = 2,
+    STEPS = 3,
+}
+
 const materialParams: THREE.ShaderMaterialParameters = {
     uniforms: {
         u_time: { value: 0.0 },
@@ -18,6 +25,7 @@ const materialParams: THREE.ShaderMaterialParameters = {
         u_image_buffer: { value: null },
         u_depth: { value: null },
         u_maxSteps: { value: 100 },
+        u_outputType: { value: 0 },
     },
     vertexShader: marchVS,
     fragmentShader: marchFS,
@@ -26,6 +34,14 @@ const materialParams: THREE.ShaderMaterialParameters = {
 export default class MarchPass extends PostPass {
     constructor(gl: WebGLRenderingContext) {
         super({ gl, materialParams });
+    }
+
+    get outputType(): OutputType {
+        return this.material.uniforms.u_outputType.value;
+    }
+
+    set outputType(value: OutputType) {
+        this.material.uniforms.u_outputType.value = value;
     }
 
     get time(): number {
