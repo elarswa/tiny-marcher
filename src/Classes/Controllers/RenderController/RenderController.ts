@@ -3,8 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { EffectComposer } from 'three/examples/jsm/Addons.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
-import MarchPass from '../../Materials/MarchPass/MarchPass';
-import DepthPass from '../../Materials/DepthPass/DepthPass';
+import MarchPass, { OutputType } from '../../Materials/MarchPass/MarchPass';
 import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 import Stats from 'three/examples/jsm/libs/stats.module.js';
 import { FAR, NEAR } from '../../../Constants/camera';
@@ -25,7 +24,6 @@ export default class RenderController {
     private _ambientLight: THREE.AmbientLight | null = null;
     private _composer: EffectComposer;
     private _marchPass: MarchPass | null = null;
-    private _depthPass: DepthPass | null = null;
     private _depthRender: THREE.WebGLRenderTarget;
     private _stats: Stats = new Stats();
 
@@ -115,13 +113,7 @@ export default class RenderController {
         );
 
         this._composer.addPass(new RenderPass(this._scene, this._camera));
-        this._depthPass = new DepthPass(this._renderer.getContext());
-        this._depthPass.material.uniforms.uCameraNear.value = NEAR;
-        this._depthPass.material.uniforms.uCameraFar.value = FAR;
-        this._depthPass.material.uniforms.tDepth.value = this._depthRender.depthTexture;
-        this._depthPass.material.uniforms.tDiffuse.value = this._depthRender.texture;
 
-        this._composer.addPass(new DepthPass(this._renderer.getContext()));
         // insert marching pass
         this._marchPass = new MarchPass(this._renderer.getContext());
         this._marchPass.material.uniforms.u_depth.value = this._depthRender.depthTexture;
