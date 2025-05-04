@@ -133,12 +133,6 @@ export default `
             float two_third_max_steps_f = 2.0 * max_steps_f / 3.0;
             float input_steps_f = float(march.steps);
 
-            // kinda glowy output
-            // float low_steps = Normalize_to_range(input_steps_f, 0.0, third_max_steps_f);
-            // float mid_steps = Normalize_to_range(input_steps_f, third_max_steps_f, two_third_max_steps_f);
-            // float high_steps = Normalize_to_range(input_steps_f, two_third_max_steps_f, max_steps_f);
-            // gl_FragColor = vec4(high_steps, mid_steps, low_steps, 1.); // steps as color output
-
             if (input_steps_f < third_max_steps_f) {
                 gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);
             } else if (input_steps_f < two_third_max_steps_f) {
