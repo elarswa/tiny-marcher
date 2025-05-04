@@ -93,6 +93,11 @@ export default `
         vec3 ray_dir = (u_camInvProjMat * vec4(uv*2.-1., 0, 1)).xyz;
         ray_dir = normalize( (u_camToWorldMat * vec4(ray_dir, 0)).xyz );
 
+        vec2 screen_uv_ndc = vec2(uv);
+        screen_uv_ndc.y = 1.0 - screen_uv_ndc.y * 2.;
+        screen_uv_ndc.x = screen_uv_ndc.x * 2. - 1.;
+        float ray_cosa = cos(atan(length(screen_uv_ndc)));
+
         MarchResult march = Ray_march(ray_origin, ray_dir);
         vec4 texel = texture2D(u_image_buffer, uv);
         float raster_depth = texture2D(u_depth, uv).r;
