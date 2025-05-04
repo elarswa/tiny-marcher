@@ -33,7 +33,6 @@ export default `
 
     
     float Normalize_to_range(float target, float low, float high) {
-        target = clamp(target, low, high);
         return (target - low) / (high - low);
     }
 
