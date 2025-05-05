@@ -1,4 +1,6 @@
-export default `
+const glsl = (x: any) => String(x);
+
+export default glsl`
     precision mediump float;
     uniform int u_outputType;
     uniform float u_time;
@@ -21,6 +23,7 @@ export default `
     uniform sampler2D u_image_buffer;
     uniform sampler2D u_depth;
     uniform int u_maxSteps;
+    uniform bool u_showSceneDepth;
 
     const float MIN_DIST = 0.001;
     const float MAX_DIST = 100.0;
@@ -28,6 +31,7 @@ export default `
 
     struct MarchResult {
         float distance;
+        vec3 hit_position;
         int steps;
     };
 
@@ -63,17 +67,19 @@ export default `
 
     MarchResult Ray_march(in vec3 rayOrigin, in vec3 rayDirection) {
         float total_distance = 0.0;
+        vec3 hit_position = vec3(0.0);
+
         int i = 0;
         for (; i < u_maxSteps; i++) {
-            vec3 current_position = rayOrigin + rayDirection * total_distance;
-            float dist = Scene_sdf(current_position);
+            hit_position = rayOrigin + rayDirection * total_distance;
+            float dist = Scene_sdf(hit_position) * 0.999;
 
             if (dist < MIN_DIST ||  dist > MAX_DIST) break;
 
             total_distance += dist;
         }
 
-        return MarchResult(total_distance, i);
+        return MarchResult(total_distance, hit_position, i);
     }
 
     // from https://iquilezles.org/articles/normalsSDF/
@@ -89,6 +95,7 @@ export default `
 
     void main() {
         vec2 uv = vUv;//u_resolution.xy;
+
         vec3 ray_origin = u_camPos;
         vec3 ray_dir = (u_camInvProjMat * vec4(uv*2.-1., 0, 1)).xyz;
         ray_dir = normalize( (u_camToWorldMat * vec4(ray_dir, 0)).xyz );
@@ -99,32 +106,44 @@ export default `
         float ray_cosa = cos(atan(length(screen_uv_ndc)));
 
         MarchResult march = Ray_march(ray_origin, ray_dir);
-        vec4 texel = texture2D(u_image_buffer, uv);
         float raster_depth = texture2D(u_depth, uv).r;
 
-        float linear_depth = Linear_depth(raster_depth);
+        float linear_raster_depth = Linear_depth(raster_depth);
+
         float linear_depth_march = Normalize_to_range(march.distance, MIN_DIST, MAX_DIST);
 
-        if (linear_depth_march  > linear_depth) {
+        bool draw_raster_scene = (linear_depth_march * ray_cosa) > linear_raster_depth || march.distance > MAX_DIST;
+        bool draw_depth = u_outputType == 1 ;
+
+
+        if ( draw_raster_scene && !draw_depth ) { 
+            vec4 texel = texture2D(u_image_buffer, uv);
             gl_FragColor = texel;
             return;
         }
 
-        vec3 hit_position = ray_origin + march.distance * ray_dir;
-        vec3 normal_dir = Normal(hit_position);
+        vec3 normal_dir = Normal(march.hit_position);
 
         if (u_outputType == 0) {
             float dot_normal_light = dot(normal_dir, u_lightDir);
             float diffuse_intensity = max(dot_normal_light, 0.0) * u_diffIntensity;
 
-            float spec = pow(diffuse_intensity, u_shininess) * u_specIntensity;
+            // float spec = pow(diffuse_intensity, u_shininess) * u_specIntensity;
             // vec3 color = u_diffuse * diffuse_intensity + u_specularColor * spec + u_ambientColor * u_ambientIntensity;
 
-            vec3 color = vec3(0.7) * diffuse_intensity + u_ambientColor * u_ambientIntensity;
+            vec3 color = vec3(1.0) * diffuse_intensity + u_ambientColor * u_ambientIntensity;
             gl_FragColor = vec4(color, 1.); // color output
         } else if (u_outputType == 1) {
-            vec3 color = vec3(march.distance * .1);
+            if (u_showSceneDepth) {
+                // rasterized depth output
+                gl_FragColor = vec4(vec3(linear_raster_depth), 1.);
+            }
+            else {
+                // march depth
+                vec3 color = vec3(linear_depth_march);
+                // vec3 color = vec3(march.distance * .1);
             gl_FragColor = vec4(color, 1.); // depth output
+            }
         } else if (u_outputType == 2) {
             gl_FragColor = vec4(abs( normal_dir ), 1.); // normal output
         } else if (u_outputType == 3) {
@@ -140,7 +159,6 @@ export default `
             } else {
                 gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
             }
-            
         }
     }
 `;

@@ -25,7 +25,8 @@ const materialParams: THREE.ShaderMaterialParameters = {
         u_image_buffer: { value: null },
         u_depth: { value: null },
         u_maxSteps: { value: 100 },
-        u_outputType: { value: 0 },
+        u_outputType: { value: OutputType.DEPTH },
+        u_showSceneDepth: { value: false },
     },
     vertexShader: marchVS,
     fragmentShader: marchFS,
@@ -34,6 +35,30 @@ const materialParams: THREE.ShaderMaterialParameters = {
 export default class MarchPass extends PostPass {
     constructor(gl: WebGLRenderingContext) {
         super({ gl, materialParams });
+    }
+
+    get showSceneDepth(): boolean {
+        return this.material.uniforms.u_showSceneDepth.value;
+    }
+
+    set showSceneDepth(value: boolean) {
+        this.material.uniforms.u_showSceneDepth.value = value;
+    }
+
+    get ambientColor(): THREE.Color {
+        return this.material.uniforms.u_ambientColor.value;
+    }
+
+    set ambientColor(value: THREE.Color) {
+        this.material.uniforms.u_ambientColor.value = value;
+    }
+
+    get ambientIntensity(): number {
+        return this.material.uniforms.u_ambientIntensity.value;
+    }
+
+    set ambientIntensity(value: number) {
+        this.material.uniforms.u_ambientIntensity.value = value;
     }
 
     get outputType(): OutputType {

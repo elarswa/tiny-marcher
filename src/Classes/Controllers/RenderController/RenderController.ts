@@ -52,7 +52,7 @@ export default class RenderController {
         this._light.position.set(5, 5, 0).normalize();
         this._scene.add(this._light);
         this._scene.background = new THREE.Color(0xffffff); // Set background color
-        this._ambientLight = new THREE.AmbientLight(0x404040, 1); // Soft white light
+        this._ambientLight = new THREE.AmbientLight(0xffffff, 0.3); // Soft white light
         this._scene.add(this._ambientLight);
         const gridHelper = new THREE.GridHelper(10, 10);
         this._scene.add(gridHelper);
@@ -123,12 +123,26 @@ export default class RenderController {
         this.startAnimationLoop();
 
         const gui = new GUI();
+        gui.add(this._marchPass, 'enabled').name('March');
         gui.add(this._marchPass, 'maxSteps', 1, 200, 1).name('Steps');
         gui.add(this._marchPass, 'outputType').name('Output Type').options({
             Color: 0,
             Depth: 1,
             Normal: 2,
             Steps: 3,
+        });
+        const depthFolder = gui.addFolder('Depth Settings');
+        const sceneDepthController = depthFolder
+            .add(this._marchPass, 'showSceneDepth')
+            .name('Scene Depth');
+        if (this._marchPass.outputType !== OutputType.DEPTH) sceneDepthController.hide();
+
+        gui.onChange(() => {
+            if (this._marchPass?.outputType === 1) {
+                sceneDepthController.show();
+            } else {
+                sceneDepthController.hide();
+            }
         });
 
         gui.open();
@@ -146,6 +160,10 @@ export default class RenderController {
                     -1,
                 ),
             );
+            this._marchPass.ambientColor.copy(
+                this._ambientLight?.color || new THREE.Color(1, 1, 1),
+            );
+            this._marchPass.ambientIntensity = this._ambientLight?.intensity || 1.0;
             this._marchPass.camPos.copy(this._camera.position);
             this._marchPass.camToWorldMat.copy(this._camera.matrixWorld);
             this._marchPass.camInvProjMat.copy(this._camera.projectionMatrixInverse);
