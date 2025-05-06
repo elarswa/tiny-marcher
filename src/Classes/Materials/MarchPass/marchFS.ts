@@ -28,6 +28,7 @@ export default glsl`
     const float MIN_DIST = 0.001;
     const float MAX_DIST = 100.0;
     const float EPSILON = 0.0001;
+    const float PI = 3.1415926;
 
     struct MarchResult {
         float distance;
@@ -148,17 +149,10 @@ export default glsl`
             gl_FragColor = vec4(abs( normal_dir ), 1.); // normal output
         } else if (u_outputType == 3) {
             float max_steps_f = float(u_maxSteps);
-            float third_max_steps_f = max_steps_f / 3.0;
-            float two_third_max_steps_f = 2.0 * max_steps_f / 3.0;
             float input_steps_f = float(march.steps);
+            float steps_ratio = input_steps_f / max_steps_f;
 
-            if (input_steps_f < third_max_steps_f) {
-                gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0);
-            } else if (input_steps_f < two_third_max_steps_f) {
-                gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
-            } else {
-                gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-            }
+            gl_FragColor = vec4(sin(PI * steps_ratio - PI * 0.5), sin(PI * steps_ratio), cos(PI * steps_ratio), 1.0);
         }
     }
 `;
