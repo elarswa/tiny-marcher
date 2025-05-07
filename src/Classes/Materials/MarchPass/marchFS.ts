@@ -1,6 +1,7 @@
 const glsl = (x: any) => String(x);
 
 export default glsl`
+    #include <packing>
     precision mediump float;
     uniform int u_outputType;
     uniform float u_time;
@@ -101,26 +102,29 @@ export default glsl`
         return normalize(n);
     }
 
+    float readDepth( vec2 coord ) {
+        float fragCoordZ = texture2D( u_depth, coord ).x;
+        float viewZ = perspectiveDepthToViewZ( fragCoordZ, NEAR, FAR );
+        return viewZToOrthographicDepth( viewZ, NEAR, FAR );
+    }
+
     void main() {
         vec2 uv = vUv;//u_resolution.xy;
 
+        vec2 screen_uv_ndc = uv;
+        screen_uv_ndc = ( screen_uv_ndc * 2.0 - 1.0 );
+
         vec3 ray_origin = u_camPos;
-        vec3 ray_dir = (u_camInvProjMat * vec4(uv*2.-1., 0, 1)).xyz;
+        vec3 ray_dir = (u_camInvProjMat * vec4(screen_uv_ndc, 0, 1)).xyz;
         ray_dir = normalize( (u_camToWorldMat * vec4(ray_dir, 0)).xyz );
 
-        vec2 screen_uv_ndc = vec2(uv);
-        screen_uv_ndc.y = 1.0 - screen_uv_ndc.y * 2.;
-        screen_uv_ndc.x = screen_uv_ndc.x * 2. - 1.;
-        float ray_cosa = cos(atan(length(screen_uv_ndc)));
-
         MarchResult march = Ray_march(ray_origin, ray_dir);
-        float raster_depth = texture2D(u_depth, uv).r;
 
-        float linear_raster_depth = Linear_depth(raster_depth);
+        float scene_depth = readDepth(uv);
 
-        float linear_depth_march = Normalize_to_range(march.distance, MIN_DIST, MAX_DIST);
+        float march_depth = Normalize_to_range(Remap_from_range_to_range(march.distance, MIN_DIST, MAX_DIST, NEAR, FAR), NEAR, FAR);
 
-        bool draw_raster_scene = (linear_depth_march * ray_cosa) > linear_raster_depth || march.distance > MAX_DIST;
+        bool draw_raster_scene = (march_depth * ray_cosa) > scene_depth || march.distance > MAX_DIST;
         bool draw_depth = u_outputType == 1 ;
 
 
@@ -143,12 +147,9 @@ export default glsl`
             gl_FragColor = vec4(color, 1.); // color output
         } else if (u_outputType == 1) {
             if (u_showSceneDepth) {
-                // rasterized depth output
-                gl_FragColor = vec4(vec3(linear_raster_depth), 1.);
-            }
-            else {
-                // march depth
-                vec3 color = vec3(linear_depth_march);
+                gl_FragColor = vec4(vec3(scene_depth), 1.);
+           } else {
+                vec3 color = vec3(march_depth);
                 // vec3 color = vec3(march.distance * .1);
             gl_FragColor = vec4(color, 1.); // depth output
             }
