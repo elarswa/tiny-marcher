@@ -29,6 +29,8 @@ export default glsl`
     const float MAX_DIST = 100.0;
     const float EPSILON = 0.0001;
     const float PI = 3.1415926;
+    const float NEAR = 0.1;
+    const float FAR = 100.0;
 
     struct MarchResult {
         float distance;
@@ -41,9 +43,14 @@ export default glsl`
         return (target - low) / (high - low);
     }
 
+    float Remap_from_range_to_range(float target, float old_low, float old_high, float new_low, float new_high) {
+        return new_low + (target - old_low) * (new_high - new_low) / (old_high - old_low);
+    }
+
+    // put value fromk range [0, 1] to range [NEAR, FAR]
     float Linear_depth(float depth) {
         float z = depth * 2.0 - 1.0; // back to NDC
-        return (2.0 * MIN_DIST * MAX_DIST) / (MAX_DIST + MIN_DIST - z * (MAX_DIST - MIN_DIST));
+        return (2.0 * NEAR * FAR) / (FAR + NEAR - z * (FAR - NEAR));
     }
 
     float Box_sdf(vec3 p, vec3 b) {
