@@ -72,15 +72,16 @@ export default class RenderController {
     }
 
     public addWalls = () => {
-        const wallGeometry = new THREE.BoxGeometry(2, 1, 0.1);
-        const wallMaterial = new THREE.MeshBasicMaterial({ color: 0x0ff0f0 });
+        const wallGeometry = new THREE.BoxGeometry(1, 1, 1);
+        const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x0ff0f0 });
         const wall1 = new THREE.Mesh(wallGeometry, wallMaterial);
-        wall1.position.set(0, 0.5, -0.5);
+        // wall1.position.set(1, 0.0, 1);
         this._scene.add(wall1);
-        const wall2 = wall1.clone();
-        wall2.position.set(1, 0.5, 1);
-        wall2.rotateOnAxis(new THREE.Vector3(0, 1, 0), Math.PI / 4);
-        this._scene.add(wall2);
+
+        // const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
+        // this._scene.add(
+        //     new THREE.Mesh(sphereGeometry, new THREE.MeshStandardMaterial({ color: 0xff0000 })),
+        // );
     };
 
     public init = ({ container }: RenderControllerProps) => {
