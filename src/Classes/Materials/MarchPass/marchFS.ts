@@ -32,6 +32,7 @@ export default glsl`
     const float PI = 3.1415926;
     const float NEAR = 0.1;
     const float FAR = 100.0;
+    const float HALF_FOV_RAD = 75.0 * 0.5 * PI / 180.0;
 
     struct MarchResult {
         float distance;
@@ -121,8 +122,8 @@ export default glsl`
         MarchResult march = Ray_march(ray_origin, ray_dir);
 
         float scene_depth = readDepth(uv);
-
         float march_depth = Normalize_to_range(Remap_from_range_to_range(march.distance, MIN_DIST, MAX_DIST, NEAR, FAR), NEAR, FAR);
+        float ray_cosa = normalize(vec3(screen_uv_ndc * tan( HALF_FOV_RAD ), 1.)).z;
 
         bool draw_raster_scene = (march_depth * ray_cosa) > scene_depth || march.distance > MAX_DIST;
         bool draw_depth = u_outputType == 1 ;
@@ -150,7 +151,6 @@ export default glsl`
                 gl_FragColor = vec4(vec3(scene_depth), 1.);
            } else {
                 vec3 color = vec3(march_depth);
-                // vec3 color = vec3(march.distance * .1);
             gl_FragColor = vec4(color, 1.); // depth output
             }
         } else if (u_outputType == 2) {
