@@ -99,6 +99,20 @@ export default glsl`
         return MarchResult(total_distance, hit_position, i);
     }
 
+    // https://iquilezles.org/articles/rmshadows/
+    float softshadow( in vec3 ro, in vec3 rd, float w ) {
+        float res = 1.0;
+        float t = MIN_DIST;
+        for( int i=0; i<u_maxSteps; i++ ) {
+            float h = map(ro + t*rd);
+            res = min( res, h/(w*t) );
+            t += clamp(h, 0.005, 0.50);
+            if( res<-1.0 || t>MAX_DIST ) break;
+        }
+        res = max(res,-1.0);
+        return 0.25*(1.0+res)*(1.0+res)*(2.0-res);
+    }
+
     // from https://iquilezles.org/articles/normalsSDF/
    vec3 Normal(vec3 p) {
         vec3 n = vec3(0, 0, 0);
@@ -145,8 +159,9 @@ export default glsl`
         vec3 normal_dir = Normal(march.hit_position);
 
         if (u_outputType == 0) {
+            float shadow_ratio = softshadow(march.hit_position, u_lightDir, 0.1);
             float dot_normal_light = dot(normal_dir, u_lightDir);
-            float diffuse_intensity = max(dot_normal_light, 0.0) * u_diffIntensity;
+            float diffuse_intensity = max(dot_normal_light, 0.0) * u_diffIntensity * shadow_ratio;
 
             // float spec = pow(diffuse_intensity, u_shininess) * u_specIntensity;
             // vec3 color = u_diffuse * diffuse_intensity + u_specularColor * spec + u_ambientColor * u_ambientIntensity;
