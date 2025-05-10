@@ -79,6 +79,7 @@ export default glsl`
     #define surfaceIntersection(h, f) max(h, f)
     #define surfaceSubtraction(h, f) max(h, -f)
     #define repeat(f, p, period) f(mod(p, period))
+    float map(vec3 p) {
     }
 
     MarchResult Ray_march(in vec3 rayOrigin, in vec3 rayDirection) {
@@ -88,7 +89,7 @@ export default glsl`
         int i = 0;
         for (; i < u_maxSteps; i++) {
             hit_position = rayOrigin + rayDirection * total_distance;
-            float dist = Scene_sdf(hit_position) * 0.999;
+            float dist = map(hit_position) * 0.999;
 
             if (dist < MIN_DIST ||  dist > MAX_DIST) break;
 
@@ -104,7 +105,7 @@ export default glsl`
         vec3 e;
         for(int i = 0; i < 4; i++) {
             e = 0.5773 * (2.0 * vec3((((i + 3) >> 1) & 1), ((i >> 1) & 1), (i & 1)) - 1.0);
-            n += e * Scene_sdf(p + e * EPSILON);
+            n += e * map(p + e * EPSILON);
         }
         return normalize(n);
     }
