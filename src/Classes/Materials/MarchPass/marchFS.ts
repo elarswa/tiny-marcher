@@ -34,6 +34,13 @@ export default glsl`
     const float FAR = 100.0;
     const float HALF_FOV_RAD = 75.0 * 0.5 * PI / 180.0;
 
+    // #define repeat(p, period) mod(p, period)
+
+    float smin(float a, float b, float blendRadius) {
+        float c = clamp(0.5 + (b - a) * (0.5 / blendRadius), 0., 1.);
+        return mix(b, a, c) - blendRadius * c * (1.0 - c);
+    }
+
     struct MarchResult {
         float distance;
         vec3 hit_position;
