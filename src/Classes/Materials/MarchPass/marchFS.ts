@@ -71,15 +71,9 @@ export default glsl`
         return length(p) - r;
     }
 
-    float Repeat(vec3 p, float s) {
-        vec3 radius = p - s*round(p/s);
-        // return Box_sdf(radius, vec3(0.5));
-        return Sphere_sdf(radius, 0.5);
+    float XZ_Plane_sdf(vec3 p) {
+        return p.y;
     }
-
-    float Scene_sdf(vec3 p) {
-        if (length(p) > 10.0) return MAX_DIST + 1.0;
-        return Repeat(p, 2.0);
     }
 
     MarchResult Ray_march(in vec3 rayOrigin, in vec3 rayDirection) {
