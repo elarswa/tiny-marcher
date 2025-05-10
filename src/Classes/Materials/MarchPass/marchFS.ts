@@ -74,6 +74,11 @@ export default glsl`
     float XZ_Plane_sdf(vec3 p) {
         return p.y;
     }
+
+    #define surfaceUnion(h, f) min(h, f)
+    #define surfaceIntersection(h, f) max(h, f)
+    #define surfaceSubtraction(h, f) max(h, -f)
+    #define repeat(f, p, period) f(mod(p, period))
     }
 
     MarchResult Ray_march(in vec3 rayOrigin, in vec3 rayDirection) {
